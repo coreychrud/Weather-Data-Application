@@ -27,6 +27,20 @@ uvicorn app.main:app --reload
 
 Open the interactive API docs at <http://127.0.0.1:8000/docs>.
 
+## Frontend
+
+The project also includes a React/D3 frontend in the `frontend` directory. Click
+any state on the US map to retrieve current weather for that location.
+Run it separately from the backend:
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+Open the frontend at <http://localhost:5173>.
+
 ## Request a forecast
 
 ```bash

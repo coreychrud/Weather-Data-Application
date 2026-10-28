@@ -29,8 +29,11 @@ Open the interactive API docs at <http://127.0.0.1:8000/docs>.
 
 ## Frontend
 
-The project also includes a React/D3 frontend in the `frontend` directory. Click
-any state on the US map to retrieve current weather for that location.
+The project also includes a responsive React/D3 frontend in the `frontend`
+directory. Select a location on the US map to explore current conditions, a
+seven-day forecast with hourly detail, or hourly observations for a historical
+date. Selecting a state zooms the map for more precise location selection, and
+the interface supports metric and imperial units.
 Run it separately from the backend:
 
 ```powershell

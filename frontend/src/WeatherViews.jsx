@@ -16,11 +16,16 @@ function Metric({ label, value }) {
   );
 }
 
-function ConditionHeading({ code, eyebrow, title }) {
+function ConditionHeading({ code, eyebrow, location, title }) {
   return (
     <div className="condition-heading">
       <div className="weather-symbol" aria-hidden="true">{weatherSymbol(code)}</div>
       <div>
+        {location?.name && (
+          <p className="weather-place-name">
+            {location.name}{location.region ? <span>, {location.region}</span> : null}
+          </p>
+        )}
         <p className="section-kicker">{eyebrow}</p>
         <h2>{title || weatherDescriptions[code] || "Weather conditions"}</h2>
       </div>
@@ -45,7 +50,7 @@ export function EmptyWeather({ mode }) {
   );
 }
 
-export function CurrentWeather({ data }) {
+export function CurrentWeather({ data, location }) {
   const current = data.current;
   const daily = data.daily;
   const temperatureUnit = data.current_units.temperature_2m;
@@ -55,6 +60,7 @@ export function CurrentWeather({ data }) {
       <ConditionHeading
         code={current.weather_code}
         eyebrow={`Now · ${data.timezone_abbreviation}`}
+        location={location}
         title={weatherDescriptions[current.weather_code]}
       />
       <div className="hero-reading">
@@ -174,7 +180,7 @@ function DailyMetrics({ data, index = 0, historical = false }) {
   );
 }
 
-export function ForecastWeather({ data, selectedIndex, onSelectDay }) {
+export function ForecastWeather({ data, location, selectedIndex, onSelectDay }) {
   const selectedDate = data.daily.time[selectedIndex];
   const rows = hourlyRows(data.hourly).filter((row) => row.time.startsWith(selectedDate));
   const code = data.daily.weather_code[selectedIndex];
@@ -185,6 +191,7 @@ export function ForecastWeather({ data, selectedIndex, onSelectDay }) {
         <ConditionHeading
           code={code}
           eyebrow={`Forecast · ${data.timezone_abbreviation}`}
+          location={location}
           title={formatDateLabel(selectedDate, { weekday: "long" })}
         />
         <span className="condition-copy">{weatherDescriptions[code]}</span>
@@ -216,7 +223,7 @@ export function ForecastWeather({ data, selectedIndex, onSelectDay }) {
   );
 }
 
-export function HistoricalWeather({ data }) {
+export function HistoricalWeather({ data, location }) {
   const code = data.daily.weather_code[0];
   const date = data.daily.time[0];
   const rows = hourlyRows(data.hourly);
@@ -227,6 +234,7 @@ export function HistoricalWeather({ data }) {
         <ConditionHeading
           code={code}
           eyebrow={`Historical · ${data.timezone_abbreviation}`}
+          location={location}
           title={formatDateLabel(date, { weekday: "long", year: "numeric" })}
         />
         <span className="condition-copy">{weatherDescriptions[code]}</span>

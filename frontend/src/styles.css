@@ -229,6 +229,33 @@ h2 {
   gap: 8px;
 }
 
+.selected-place-pill {
+  display: grid;
+  max-width: 230px;
+  gap: 2px;
+  border-radius: 13px;
+  padding: 8px 11px;
+  color: #fff;
+  background: #163f4b;
+  text-align: left;
+}
+
+.selected-place-pill strong {
+  overflow: hidden;
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selected-place-pill span {
+  overflow: hidden;
+  color: #c9dfdd;
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .reset-map-button {
   min-height: 34px;
   border: 1px solid #bfd0d1;
@@ -309,6 +336,156 @@ h2 {
   vector-effect: non-scaling-stroke;
 }
 
+.place-marker {
+  cursor: pointer;
+  outline: none;
+}
+
+.place-hit-area {
+  fill: transparent;
+}
+
+.place-badge,
+.combined-ring,
+.place-glyph {
+  vector-effect: non-scaling-stroke;
+  transition: filter 150ms ease, transform 150ms ease;
+}
+
+.place-badge {
+  stroke: #fff;
+  stroke-width: 2;
+}
+
+.place-marker.metro .place-badge { fill: #163f4b; }
+.place-marker.capital .place-badge { fill: #d98422; }
+.place-marker.largest .place-badge { fill: #277c78; }
+.place-glyph { fill: #fff; }
+
+.place-marker.combined .place-badge {
+  fill: #163f4b;
+}
+
+.place-marker.combined .combined-ring {
+  fill: none;
+  stroke: #efb044;
+  stroke-width: 2.5;
+}
+
+.place-marker:hover .place-badge,
+.place-marker:focus .place-badge,
+.place-marker.selected .place-badge {
+  filter: drop-shadow(0 0 4px rgb(16 32 51 / 55%));
+}
+
+.place-marker:hover .place-badge,
+.place-marker:focus .place-badge { transform: scale(1.08); }
+
+.place-marker.selected .place-hit-area {
+  fill: rgb(245 166 35 / 18%);
+  stroke: #f5a623;
+  stroke-width: 2;
+}
+
+.place-tooltip {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.place-tooltip rect { fill: #102033; }
+
+.place-tooltip text {
+  fill: #fff;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.place-marker:hover .place-tooltip,
+.place-marker:focus .place-tooltip {
+  visibility: visible;
+  opacity: 1;
+}
+
+.map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 18px;
+  margin-top: 2px;
+  color: #62737e;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.map-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.legend-marker {
+  position: relative;
+  display: inline-grid;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px currentColor;
+}
+
+.legend-marker.metro {
+  color: #163f4b;
+  background: #163f4b;
+}
+
+.legend-marker.metro::before {
+  width: 8px;
+  height: 7px;
+  background: linear-gradient(to right, #fff 0 27%, transparent 27% 36%, #fff 36% 64%, transparent 64% 73%, #fff 73%);
+  content: "";
+}
+
+.legend-marker.capital { color: #d98422; background: #d98422; }
+
+.legend-marker.capital::before {
+  color: #fff;
+  content: "★";
+  font-size: 9px;
+  line-height: 1;
+}
+
+.legend-marker.largest {
+  color: #277c78;
+  background: #277c78;
+}
+
+.legend-marker.largest::before {
+  width: 6px;
+  height: 8px;
+  background: #fff;
+  content: "";
+  clip-path: polygon(20% 30%, 40% 30%, 40% 0, 100% 0, 100% 100%, 0 100%, 0 30%);
+}
+
+.legend-marker.combined {
+  color: #163f4b;
+  border-color: #efb044;
+  background: #163f4b;
+  box-shadow: 0 0 0 1px #163f4b;
+}
+
+.legend-marker.combined::before {
+  color: #fff;
+  content: "★";
+  font-size: 9px;
+  line-height: 1;
+}
+
 .map-help {
   margin: 4px 0 0;
   color: #7a8992;
@@ -365,6 +542,18 @@ h2 {
   align-items: center;
   gap: 18px;
 }
+
+.weather-place-name {
+  margin: 0 0 5px;
+  color: #163f4b;
+  font-size: 0.95rem;
+  font-weight: 850;
+  letter-spacing: -0.02em;
+}
+
+.weather-place-name span { color: #637680; font-weight: 700; }
+
+.weather-place-name + .section-kicker { margin-bottom: 5px; }
 
 .weather-symbol {
   display: grid;

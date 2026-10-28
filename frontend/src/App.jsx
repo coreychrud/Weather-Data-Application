@@ -79,17 +79,22 @@ function App() {
     weatherContent = <ErrorWeather message={error} onRetry={() => setRetryCount((count) => count + 1)} />;
   }
   if (selectedLocation && data && !isLoading && !error) {
-    if (mode === "current") weatherContent = <CurrentWeather data={data} />;
+    if (mode === "current") {
+      weatherContent = <CurrentWeather data={data} location={selectedLocation} />;
+    }
     if (mode === "forecast") {
       weatherContent = (
         <ForecastWeather
           data={data}
+          location={selectedLocation}
           selectedIndex={selectedForecastIndex}
           onSelectDay={setSelectedForecastIndex}
         />
       );
     }
-    if (mode === "historical") weatherContent = <HistoricalWeather data={data} />;
+    if (mode === "historical") {
+      weatherContent = <HistoricalWeather data={data} location={selectedLocation} />;
+    }
   }
 
   return (

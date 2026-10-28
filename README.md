@@ -33,7 +33,10 @@ The project also includes a responsive React/D3 frontend in the `frontend`
 directory. Select a location on the US map to explore current conditions, a
 seven-day forecast with hourly detail, or hourly observations for a historical
 date. Selecting a state zooms the map for more precise location selection, and
-the interface supports metric and imperial units.
+the interface supports metric and imperial units. The national view includes
+the 30 largest US metropolitan areas; a state view labels its capital and
+largest incorporated city, retains every top-30 metro in that state, and uses
+combined markers where multiple roles refer to the same place.
 Run it separately from the backend:
 
 ```powershell

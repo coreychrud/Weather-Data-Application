@@ -1,6 +1,6 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from datetime import date
+from datetime import date, datetime, timedelta, timezone as datetime_timezone
 from typing import Annotated
 
 from fastapi import FastAPI, HTTPException, Path, Query, status
@@ -12,6 +12,8 @@ from app.models import (
     DayWeatherResponse,
     ForecastResponse,
     HealthResponse,
+    HeatmapRequest,
+    HeatmapResponse,
     UnitSystem,
     WeatherCategory,
 )
@@ -52,6 +54,46 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     async def health() -> HealthResponse:
         return HealthResponse(status="ok")
+
+    @application.post(
+        "/api/v1/weather/heatmap",
+        response_model=HeatmapResponse,
+        tags=["weather"],
+        summary="Retrieve daily mean temperature and precipitation for up to 384 map samples",
+    )
+    async def heatmap(
+        request: HeatmapRequest, client: OpenMeteoClientDependency
+    ) -> dict[str, object]:
+        today = datetime.now(datetime_timezone.utc).date()
+        if not date(1940, 1, 1) <= request.weather_date <= today + timedelta(days=15):
+            raise HTTPException(
+                status_code=422,
+                detail="Choose a date from 1940 through the next 15 days.",
+            )
+        # Bridge the archive's publication delay using the Forecast API's recent past.
+        if request.weather_date <= today - timedelta(days=5):
+            source = "historical"
+        elif request.weather_date < today:
+            source = "recent"
+        else:
+            source = "forecast"
+        try:
+            samples = await client.get_heatmap(
+                weather_date=request.weather_date, points=request.points, source=source
+            )
+        except OpenMeteoRequestError as exc:
+            raise HTTPException(
+                status_code=422, detail="Weather data is unavailable for this date or area."
+            ) from exc
+        except OpenMeteoTimeoutError as exc:
+            raise HTTPException(
+                status_code=504, detail="Open-Meteo timed out. Try loading the map again."
+            ) from exc
+        except OpenMeteoResponseError as exc:
+            raise HTTPException(
+                status_code=502, detail="Open-Meteo returned an invalid heatmap response."
+            ) from exc
+        return {"weather_date": request.weather_date, "source": source, "samples": samples}
 
     @application.get(
         "/api/v1/forecast",

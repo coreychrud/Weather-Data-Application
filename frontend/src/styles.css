@@ -18,12 +18,14 @@ body {
 }
 
 button,
-input { font: inherit; }
+input,
+select { font: inherit; }
 
 button { color: inherit; }
 
 button:focus-visible,
-input:focus-visible {
+input:focus-visible,
+select:focus-visible {
   outline: 3px solid #f5a623;
   outline-offset: 3px;
 }
@@ -111,7 +113,7 @@ h2 {
 
 .mode-tabs {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   overflow: hidden;
   border: 1px solid #d4dfe1;
   border-radius: 18px;
@@ -178,6 +180,44 @@ h2 {
   color: #163f4b;
   background: #fff;
 }
+
+.date-control select {
+  max-width: 100%;
+  min-height: 40px;
+  border: 1px solid #bdcccf;
+  border-radius: 10px;
+  padding: 7px 10px;
+  color: #163f4b;
+  background: #fff;
+}
+
+.heatmap-controls { display: flex; flex-wrap: wrap; gap: 18px 26px; margin: 26px 0 14px; }
+.heatmap-controls .date-control { flex-wrap: wrap; }
+.heatmap-status { min-height: 38px; color: #5f6f7d; font-size: 0.85rem; }
+.heatmap-status p { margin: 8px 0; }
+.heatmap-status [role="alert"] { color: #973b39; }
+.heatmap-status [role="alert"] > p { display: inline-block; margin-right: 14px; }
+.heatmap-svg { display: block; width: 100%; height: auto; aspect-ratio: 960 / 600; background: #f3f7f8; border-radius: 16px; }
+.heatmap-state { fill: transparent; stroke: #fff; stroke-width: 1; vector-effect: non-scaling-stroke; cursor: pointer; }
+.heatmap-state:hover, .heatmap-state:focus-visible { stroke: #163f4b; stroke-width: 2; outline: none; }
+.heatmap-state:focus-visible { fill: rgb(255 255 255 / 18%); }
+.heatmap-reading { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; min-height: 52px; color: #5f6f7d; font-size: 0.82rem; }
+.heatmap-reading strong { color: #163f4b; font-size: 1.2rem; }
+.heatmap-legend { max-width: 540px; margin: 6px auto 22px; color: #405461; font-size: 0.8rem; }
+.heatmap-gradient { height: 14px; border: 1px solid #bdcccf; border-radius: 5px; margin-top: 10px; }
+.heatmap-ticks { display: flex; justify-content: space-between; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.heatmap-no-data { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 10px; }
+.heatmap-no-data i { display: inline-block; width: 12px; height: 12px; background: #d9e1e5; border: 1px solid #bdcccf; border-radius: 2px; }
+.heatmap-table { border-top: 1px solid #e0e8e9; margin-top: 20px; padding-top: 16px; color: #405461; font-size: 0.85rem; }
+.heatmap-table summary { width: fit-content; cursor: pointer; font-weight: 700; padding: 6px 0; }
+.heatmap-table summary:focus-visible, .heatmap-table-scroll:focus-visible { outline: 3px solid #f5a623; outline-offset: 3px; }
+.heatmap-table-scroll { max-height: 320px; overflow: auto; margin-top: 12px; }
+.heatmap-table table { width: 100%; border-collapse: collapse; text-align: left; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.heatmap-table th, .heatmap-table td { border-bottom: 1px solid #e0e8e9; padding: 10px 12px; }
+.heatmap-table th { position: sticky; top: 0; background: #edf6f4; }
+.heatmap-table caption { padding: 10px; text-align: left; }
+.heatmap-attribution { margin: 18px 0 0; color: #72818b; font-size: 0.72rem; }
+.heatmap-attribution a { color: #277c78; }
 
 .date-control small { color: #72818b; font-weight: 500; }
 

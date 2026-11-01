@@ -7,6 +7,7 @@ from the [Open-Meteo Forecast API](https://open-meteo.com/en/docs).
 
 - Current, hourly, and daily forecast weather
 - Single-day forecast and historical weather endpoints
+- Geographic heatmaps of daily mean temperature and total precipitation
 - Metric and imperial units
 - Coordinate and forecast-range validation
 - Async upstream requests with a shared, configurable HTTP client
@@ -37,6 +38,12 @@ the interface supports metric and imperial units. The national view includes
 the 30 largest US metropolitan areas; a state view labels its capital and
 largest incorporated city, retains every top-30 metro in that state, and uses
 combined markers where multiple roles refer to the same place.
+The **Heatmap** tab displays a sampled grid across the US, including Alaska and
+Hawaii. Choose a date and either daily average temperature or daily total
+precipitation; select a state to load a finer geographic grid. Hover to inspect a
+sample, or expand the sampled-values table for keyboard-accessible readings.
+Each cell represents one location, not a spatial average. A fixed color scale
+keeps dates and areas comparable; gray cells indicate missing data.
 Run it separately from the backend:
 
 ```powershell
@@ -46,6 +53,13 @@ npm run dev
 ```
 
 Open the frontend at <http://localhost:5173>.
+
+Heatmap dates span 1940 through 15 days ahead, subject to upstream coverage.
+Dates at least five days old use historical reanalysis; more recent past dates
+use the Forecast API to bridge the archive's publication delay. Daily aggregates
+use each sampled location's local day. Metric/imperial changes convert the same
+data without another upstream request. Precipitation is the daily total,
+including the water equivalent of snowfall, rather than a probability.
 
 ## Request a forecast
 
@@ -105,6 +119,9 @@ Query parameters:
 
 ```bash
 pytest
+cd frontend
+npm test
+npm run build
 ```
 
 Tests replace the upstream client, so they do not require network access.
@@ -126,7 +143,21 @@ docker run --rm -p 8000:8000 weather-data-api
   date.
 - `GET /api/v1/weather/historical/{weather_date}` retrieves reanalysis-based
   historical weather for one date.
+- `POST /api/v1/weather/heatmap` accepts a JSON body with `weather_date` and
+  `points` (1–384 objects containing `latitude` and `longitude`). It returns
+  ordered `samples` with daily mean `temperature` in °C and daily total
+  `precipitation` in mm, plus the date, source (`historical`, `recent`, or
+  `forecast`), and units. Missing readings remain `null`; zero precipitation is
+  a valid reading. Invalid dates or coordinates return `422`, upstream timeouts
+  return `504`, and malformed upstream responses return `502`.
 
-The service is intentionally stateless. Before adding a database, define whether
+Heatmap requests fetch both metrics together, in batches of at most 50 locations
+with at most two upstream batches running concurrently per process. A bounded
+process-local cache retains up to 128 batches for 15 minutes (recent/forecast) or
+24 hours (historical). The frontend retains up to 20 views for 15 minutes and
+cancels superseded requests. Multi-location requests still consume upstream quota
+per location; the default map uses at most 360 samples per view.
+
+The service has no persistent storage. Before adding a database, define whether
 the product needs historical snapshots, analytics, or only fresh forecasts. For
-high-traffic use, add a short-TTL cache keyed by coordinates and request options.
+high-traffic use, share caching and quota controls across application processes.

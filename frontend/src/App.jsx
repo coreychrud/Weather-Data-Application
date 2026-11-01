@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getDayWeather, getForecast } from "./api/weather.js";
 import MapPicker from "./MapPicker.jsx";
+import Heatmap from "./Heatmap.jsx";
 import {
   CurrentWeather,
   EmptyWeather,
@@ -15,6 +16,7 @@ const modes = [
   { id: "current", label: "Current", description: "Conditions right now" },
   { id: "forecast", label: "Forecast", description: "The next seven days" },
   { id: "historical", label: "History", description: "A day in the past" },
+  { id: "heatmap", label: "Heatmap", description: "Daily weather across the map" },
 ];
 
 function App() {
@@ -33,7 +35,7 @@ function App() {
     : "";
 
   useEffect(() => {
-    if (!selectedLocation) {
+    if (!selectedLocation || mode === "heatmap") {
       setDataRecord(null);
       return undefined;
     }
@@ -73,7 +75,7 @@ function App() {
   const selectedMode = modes.find((item) => item.id === mode);
   const data = dataRecord?.key === requestKey ? dataRecord.payload : null;
 
-  let weatherContent = <EmptyWeather mode={mode} />;
+  let weatherContent = mode === "heatmap" ? null : <EmptyWeather mode={mode} />;
   if (selectedLocation && isLoading) weatherContent = <LoadingWeather />;
   if (selectedLocation && error) {
     weatherContent = <ErrorWeather message={error} onRetry={() => setRetryCount((count) => count + 1)} />;
@@ -103,7 +105,7 @@ function App() {
         <div>
           <p className="eyebrow">Weather Data Application</p>
           <h1>Weather across time.</h1>
-          <p className="subtitle">Explore live conditions, the week ahead, or a day from the past.</p>
+          <p className="subtitle">Explore live conditions, the week ahead, or daily weather across the map.</p>
         </div>
         <div className="unit-toggle" aria-label="Measurement units">
           <button type="button" className={units === "imperial" ? "active" : ""} onClick={() => setUnits("imperial")} aria-pressed={units === "imperial"}>°F</button>
@@ -143,10 +145,10 @@ function App() {
         )}
       </div>
 
-      <section className="content-grid">
+      {mode === "heatmap" ? <Heatmap units={units} /> : <section className="content-grid">
         <MapPicker selectedLocation={selectedLocation} onSelect={setSelectedLocation} />
         <div className="weather-region" aria-live="polite">{weatherContent}</div>
-      </section>
+      </section>}
     </main>
   );
 }

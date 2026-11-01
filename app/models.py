@@ -1,6 +1,8 @@
+from datetime import date
 from enum import StrEnum
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class UnitSystem(StrEnum):
@@ -11,6 +13,29 @@ class UnitSystem(StrEnum):
 class WeatherCategory(StrEnum):
     forecast = "forecast"
     historical = "historical"
+
+
+class HeatmapPoint(BaseModel):
+    latitude: float = Field(ge=-90, le=90, allow_inf_nan=False)
+    longitude: float = Field(ge=-180, le=180, allow_inf_nan=False)
+
+
+class HeatmapRequest(BaseModel):
+    weather_date: date
+    points: list[HeatmapPoint] = Field(min_length=1, max_length=384)
+
+
+class HeatmapSample(HeatmapPoint):
+    temperature: float | None
+    precipitation: float | None
+
+
+class HeatmapResponse(BaseModel):
+    weather_date: date
+    source: Literal["historical", "recent", "forecast"]
+    temperature_unit: str = "°C"
+    precipitation_unit: str = "mm"
+    samples: list[HeatmapSample]
 
 
 class CurrentWeather(BaseModel):

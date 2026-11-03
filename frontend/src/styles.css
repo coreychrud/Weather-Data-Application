@@ -221,6 +221,24 @@ h2 {
 
 .date-control small { color: #72818b; font-weight: 500; }
 
+.selection-control {
+  display: grid;
+  width: min(100%, 300px);
+  gap: 4px;
+  margin: 14px auto 10px;
+  color: #687782;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.selection-control input { accent-color: #277c78; }
+
+.selection-control small {
+  color: #72818b;
+  font-size: 0.68rem;
+  font-weight: 500;
+}
+
 .content-grid {
   display: grid;
   grid-template-columns: minmax(340px, 0.83fr) minmax(480px, 1.17fr);
@@ -271,6 +289,7 @@ h2 {
 
 .selected-place-pill {
   display: grid;
+  border: 0;
   max-width: 230px;
   gap: 2px;
   border-radius: 13px;
@@ -278,6 +297,8 @@ h2 {
   color: #fff;
   background: #163f4b;
   text-align: left;
+  cursor: pointer;
+  font: inherit;
 }
 
 .selected-place-pill strong {
@@ -376,6 +397,13 @@ h2 {
   vector-effect: non-scaling-stroke;
 }
 
+.location-marker-label {
+  fill: #163f4b;
+  font-size: 10px;
+  font-weight: 900;
+  text-anchor: middle;
+}
+
 .place-marker {
   cursor: pointer;
   outline: none;
@@ -401,6 +429,14 @@ h2 {
 .place-marker.capital .place-badge { fill: #d98422; }
 .place-marker.largest .place-badge { fill: #277c78; }
 .place-glyph { fill: #fff; }
+
+.place-number {
+  fill: #163f4b;
+  font-size: 10px;
+  font-weight: 900;
+  pointer-events: none;
+  text-anchor: middle;
+}
 
 .place-marker.combined .place-badge {
   fill: #163f4b;
@@ -533,7 +569,49 @@ h2 {
   text-align: center;
 }
 
-.weather-region { min-width: 0; }
+.weather-region {
+  display: grid;
+  min-width: 0;
+  gap: 20px;
+  align-content: start;
+}
+
+.weather-panel { min-width: 0; }
+
+.weather-panel-card {
+  position: relative;
+}
+
+.weather-panel-heading {
+  position: absolute;
+  z-index: 1;
+  top: 18px;
+  right: clamp(24px, 3.5vw, 40px);
+  left: clamp(24px, 3.5vw, 40px);
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  pointer-events: none;
+  color: #277c78;
+  font-size: 0.82rem;
+}
+
+.weather-panel-heading strong {
+  color: #163f4b;
+  font-size: 1rem;
+}
+
+.weather-panel-heading span {
+  overflow: hidden;
+  color: #72818b;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weather-panel-card > .weather-card {
+  padding-top: clamp(58px, 6vw, 74px);
+}
 
 .weather-card {
   min-height: 100%;

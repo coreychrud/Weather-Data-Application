@@ -24,93 +24,94 @@ const modes = [
 function App() {
   const [mode, setMode] = useState("current");
   const [units, setUnits] = useState("imperial");
-  const [selectedLocation, setSelectedLocation] = useState(null);
+  const [selectedLocations, setSelectedLocations] = useState([]);
+  const [selectionLimit, setSelectionLimit] = useState(1);
   const [historyDate, setHistoryDate] = useState(() => offsetDate(-7));
   const [historyMonth, setHistoryMonth] = useState(() => offsetMonth(-1));
-  const [dataRecord, setDataRecord] = useState(null);
-  const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [weatherRecords, setWeatherRecords] = useState({});
+  const [loadingKeys, setLoadingKeys] = useState([]);
   const [selectedForecastIndex, setSelectedForecastIndex] = useState(0);
   const [retryCount, setRetryCount] = useState(0);
 
-  const requestKey = selectedLocation
-    ? [mode, units, historyDate, historyMonth, selectedLocation.latitude, selectedLocation.longitude].join("|")
-    : "";
+  const requestKey = [mode, units, historyDate, historyMonth, retryCount].join("|");
 
   useEffect(() => {
-    if (!selectedLocation || mode === "heatmap") {
-      setDataRecord(null);
+    if (!selectedLocations.length || mode === "heatmap") {
+      setWeatherRecords({});
+      setLoadingKeys([]);
       return undefined;
     }
 
     const controller = new AbortController();
-    setIsLoading(true);
-    setError("");
     setSelectedForecastIndex(0);
+    const locationKeys = selectedLocations.map((location) => recordKey(requestKey, location));
+    setLoadingKeys(locationKeys);
+    setWeatherRecords({});
 
-    const request = mode === "historical"
-      ? getDayWeather({
-        category: "historical",
-        date: historyDate,
-        units,
-        signal: controller.signal,
-        ...selectedLocation,
-      })
-      : mode === "monthly"
-        ? getMonthWeather({
-          month: historyMonth,
+    Promise.all(selectedLocations.map((location) => {
+      const request = mode === "historical"
+        ? getDayWeather({
+          category: "historical",
+          date: historyDate,
           units,
           signal: controller.signal,
-          ...selectedLocation,
+          ...location,
         })
-        : getForecast({
-        days: mode === "forecast" ? 7 : 1,
-        units,
-        signal: controller.signal,
-        ...selectedLocation,
-      });
+        : mode === "monthly"
+          ? getMonthWeather({
+            month: historyMonth,
+            units,
+            signal: controller.signal,
+            ...location,
+          })
+          : getForecast({
+            days: mode === "forecast" ? 7 : 1,
+            units,
+            signal: controller.signal,
+            ...location,
+          });
 
-    request
-      .then((payload) => setDataRecord({ key: requestKey, payload }))
-      .catch((requestError) => {
-        if (requestError.name !== "AbortError") setError(requestError.message);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setIsLoading(false);
-      });
+      return request
+        .then((payload) => ({ key: recordKey(requestKey, location), payload }))
+        .catch((requestError) => {
+          if (requestError.name === "AbortError") return null;
+          return { key: recordKey(requestKey, location), error: requestError.message };
+        });
+    })).then((records) => {
+      if (controller.signal.aborted) return;
+      setWeatherRecords(Object.fromEntries(records.filter(Boolean).map((record) => [
+        record.key,
+        record,
+      ])));
+      setLoadingKeys([]);
+    });
 
     return () => controller.abort();
-  }, [historyDate, historyMonth, mode, requestKey, retryCount, selectedLocation, units]);
+  }, [historyDate, historyMonth, mode, requestKey, selectedLocations, units]);
+
+  function selectLocation(location, additive = false) {
+    setSelectedLocations((current) => {
+      const next = current.filter((item) => locationKey(item) !== locationKey(location));
+      const limit = additive
+        ? Math.min(3, Math.max(selectionLimit, current.length + 1))
+        : selectionLimit;
+      if (additive && limit !== selectionLimit) setSelectionLimit(limit);
+      if (!additive && limit === 1) return [location];
+      return [...next, location].slice(-limit);
+    });
+  }
+
+  function changeSelectionLimit(event) {
+    const limit = Number(event.target.value);
+    setSelectionLimit(limit);
+    setSelectedLocations((current) => limit === 1 ? current.slice(-1) : current.slice(-limit));
+  }
+
+  function removeLocation(location) {
+    setSelectedLocations((current) => current.filter((item) => locationKey(item) !== locationKey(location)));
+  }
 
   const selectedMode = modes.find((item) => item.id === mode);
-  const data = dataRecord?.key === requestKey ? dataRecord.payload : null;
-
-  let weatherContent = mode === "heatmap" ? null : <EmptyWeather mode={mode} />;
-  if (selectedLocation && isLoading) weatherContent = <LoadingWeather />;
-  if (selectedLocation && error) {
-    weatherContent = <ErrorWeather message={error} onRetry={() => setRetryCount((count) => count + 1)} />;
-  }
-  if (selectedLocation && data && !isLoading && !error) {
-    if (mode === "current") {
-      weatherContent = <CurrentWeather data={data} location={selectedLocation} />;
-    }
-    if (mode === "forecast") {
-      weatherContent = (
-        <ForecastWeather
-          data={data}
-          location={selectedLocation}
-          selectedIndex={selectedForecastIndex}
-          onSelectDay={setSelectedForecastIndex}
-        />
-      );
-    }
-    if (mode === "historical") {
-      weatherContent = <HistoricalWeather data={data} location={selectedLocation} />;
-    }
-    if (mode === "monthly") {
-      weatherContent = <MonthlyWeather data={data} location={selectedLocation} />;
-    }
-  }
 
   return (
     <main className="app-shell">
@@ -172,11 +173,62 @@ function App() {
       </div>
 
       {mode === "heatmap" ? <Heatmap units={units} /> : <section className="content-grid">
-        <MapPicker selectedLocation={selectedLocation} onSelect={setSelectedLocation} />
-        <div className="weather-region" aria-live="polite">{weatherContent}</div>
+        <MapPicker
+          selectedLocations={selectedLocations}
+          selectionLimit={selectionLimit}
+          onSelectionLimitChange={changeSelectionLimit}
+          onSelect={selectLocation}
+          onRemove={removeLocation}
+        />
+        <div className="weather-region" aria-live="polite">
+          {!selectedLocations.length && <EmptyWeather mode={mode} />}
+          {selectedLocations.map((location, index) => {
+            const key = locationKey(location);
+            const requestRecordKey = recordKey(requestKey, location);
+            const record = weatherRecords[requestRecordKey];
+            let content = <LoadingWeather />;
+            if (!loadingKeys.includes(requestRecordKey) && record?.error) {
+              content = <ErrorWeather message={record.error} onRetry={() => setRetryCount((count) => count + 1)} />;
+            } else if (!loadingKeys.includes(requestRecordKey) && record?.payload) {
+              const { payload } = record;
+              if (mode === "current") content = <CurrentWeather data={payload} location={location} />;
+              if (mode === "forecast") {
+                content = (
+                  <ForecastWeather
+                    data={payload}
+                    location={location}
+                    selectedIndex={selectedForecastIndex}
+                    onSelectDay={setSelectedForecastIndex}
+                  />
+                );
+              }
+              if (mode === "historical") content = <HistoricalWeather data={payload} location={location} />;
+              if (mode === "monthly") content = <MonthlyWeather data={payload} location={location} />;
+            }
+            return (
+              <div className="weather-panel" key={key}>
+                <div className="weather-panel-card">
+                  <div className="weather-panel-heading">
+                    <strong>Point {index + 1}</strong>
+                    <span>{location.name || `${location.latitude.toFixed(2)}°, ${location.longitude.toFixed(2)}°`}</span>
+                  </div>
+                  {content}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </section>}
     </main>
   );
+}
+
+function locationKey(location) {
+  return `${location.latitude.toFixed(4)}:${location.longitude.toFixed(4)}`;
+}
+
+function recordKey(request, location) {
+  return `${request}|${locationKey(location)}`;
 }
 
 export default App;

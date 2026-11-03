@@ -71,7 +71,13 @@ function PlaceGlyph({ markerType }) {
   );
 }
 
-export default function MapPicker({ selectedLocation, onSelect }) {
+export default function MapPicker({
+  selectedLocations,
+  selectionLimit,
+  onSelectionLimitChange,
+  onSelect,
+  onRemove,
+}) {
   const mapRef = useRef(null);
   const svgRef = useRef(null);
   const [mapSize, setMapSize] = useState({ width: 800, height: 500 });
@@ -124,35 +130,37 @@ export default function MapPicker({ selectedLocation, onSelect }) {
       y: mapSize.height / 2 - scale * (y0 + y1) / 2,
     };
   }, [activeState, mapSize, path]);
-  const projectedLocation = selectedLocation
-    ? projection([selectedLocation.longitude, selectedLocation.latitude])
-    : null;
   const visiblePlaces = useMemo(() => {
     if (!activeStateId) return majorMetros;
 
     const statePlaces = mergeStatePlacesWithMetros(activeStateId);
     if (
-      selectedLocation?.placeId
-      && selectedLocation.stateId === activeStateId
-      && !statePlaces.some((place) => (
-        place.id === selectedLocation.placeId || isSameNamedPlace(place, selectedLocation)
-      ))
+      selectedLocations.some((location) => location.placeId && location.stateId === activeStateId)
+      && !selectedLocations.some((location) => statePlaces.some((place) => (
+        place.id === location.placeId || isSameNamedPlace(place, location)
+      )))
     ) {
-      return [...statePlaces, selectedLocation];
+      return [...statePlaces, ...selectedLocations.filter((location) => location.stateId === activeStateId)];
     }
     return statePlaces;
-  }, [activeStateId, selectedLocation]);
+  }, [activeStateId, selectedLocations]);
+  const projectedLocations = selectedLocations
+    .map((location, index) => ({ location, index }))
+    .filter(({ location }) => !visiblePlaces.some((place) => (
+      place.id === location.placeId || isSameNamedPlace(place, location)
+    )))
+    .map(({ location, index }) => ({
+      location,
+      index,
+      point: projection([location.longitude, location.latitude]),
+    }))
+    .filter(({ point }) => point);
   const projectedPlaces = useMemo(
     () => visiblePlaces
       .map((place) => ({ place, point: projection([place.longitude, place.latitude]) }))
       .filter(({ point }) => point),
     [projection, visiblePlaces],
   );
-  const selectedPlaceIsVisible = selectedLocation?.placeId
-    && visiblePlaces.some((place) => (
-      place.id === selectedLocation.placeId || isSameNamedPlace(place, selectedLocation)
-    ));
-
   function locationFromPointer(event) {
     const svg = svgRef.current;
     if (!svg) return null;
@@ -171,13 +179,13 @@ export default function MapPicker({ selectedLocation, onSelect }) {
 
   function selectFromPointer(event) {
     const location = locationFromPointer(event);
-    if (location) onSelect(location);
+    if (location) onSelect(location, event.ctrlKey || event.metaKey);
   }
 
   function selectStateFromPointer(event, state) {
     event.stopPropagation();
     const location = locationFromPointer(event);
-    if (location) onSelect(location);
+    if (location) onSelect(location, event.ctrlKey || event.metaKey);
     setActiveStateId(state.id);
   }
 
@@ -185,17 +193,24 @@ export default function MapPicker({ selectedLocation, onSelect }) {
     if (event.key !== "Enter" && event.key !== " ") return;
     event.preventDefault();
     const [longitude, latitude] = geoCentroid(state);
-    onSelect({ latitude, longitude });
+    onSelect({ latitude, longitude }, event.ctrlKey || event.metaKey);
     setActiveStateId(state.id);
   }
 
   function selectPlace(event, place) {
     event.stopPropagation();
     onSelect({
-      ...place,
+      latitude: Number(place.latitude),
+      longitude: Number(place.longitude),
+      name: place.name,
+      region: place.region,
+      state: place.state,
+      stateId: place.stateId,
+      roles: place.roles,
+      kind: place.kind,
       placeId: place.id,
       detail: placeRoleLabel(place),
-    });
+    }, event.ctrlKey || event.metaKey);
     if (states.some((state) => state.id === place.stateId)) {
       setActiveStateId(place.stateId);
     }
@@ -218,17 +233,18 @@ export default function MapPicker({ selectedLocation, onSelect }) {
           <h2 id="map-heading">Choose a place on the map</h2>
         </div>
         <div className="map-actions">
-          {selectedLocation?.name && (
-            <div className="selected-place-pill">
-              <strong>{selectedLocation.name}{selectedLocation.region ? `, ${selectedLocation.region}` : ""}</strong>
-              <span>{selectedLocation.detail}</span>
-            </div>
-          )}
-          {selectedLocation && (
-            <p className="coordinate-pill">
-              {selectedLocation.latitude.toFixed(2)}°, {selectedLocation.longitude.toFixed(2)}°
-            </p>
-          )}
+          {selectedLocations.map((location, index) => (
+            <button
+              className="selected-place-pill"
+              type="button"
+              key={`${location.latitude}:${location.longitude}`}
+              onClick={() => onRemove(location)}
+              title="Remove this location"
+            >
+              <strong>{index + 1}. {location.name || "Map point"}{location.region ? `, ${location.region}` : ""}</strong>
+              <span>{location.detail || `${location.latitude.toFixed(2)}°, ${location.longitude.toFixed(2)}°`} · Remove</span>
+            </button>
+          ))}
           {activeState && (
             <button className="reset-map-button" type="button" onClick={() => setActiveStateId(null)}>
               Reset US view
@@ -262,15 +278,18 @@ export default function MapPicker({ selectedLocation, onSelect }) {
               onKeyDown={(event) => selectState(event, state)}
             />
           ))}
-          {projectedLocation && !selectedPlaceIsVisible && (
-            <g className="location-marker" aria-hidden="true">
-              <circle cx={projectedLocation[0]} cy={projectedLocation[1]} r={13 / zoom.scale} />
-              <circle cx={projectedLocation[0]} cy={projectedLocation[1]} r={5 / zoom.scale} />
+          {projectedLocations.map(({ location, index, point }) => (
+            <g className="location-marker" key={`${location.latitude}:${location.longitude}`} aria-hidden="true">
+              <circle cx={point[0]} cy={point[1]} r={13 / zoom.scale} />
+              <circle cx={point[0]} cy={point[1]} r={5 / zoom.scale} />
+              <text x={point[0]} y={point[1] - 18 / zoom.scale} className="location-marker-label">{index + 1}</text>
             </g>
-          )}
+          ))}
           {projectedPlaces.map(({ place, point }) => {
-            const isSelected = selectedLocation?.placeId === place.id
-              || isSameNamedPlace(place, selectedLocation);
+            const selectedIndex = selectedLocations.findIndex((location) => (
+              location.placeId === place.id || isSameNamedPlace(place, location)
+            ));
+            const isSelected = selectedIndex !== -1;
             const isCombined = place.roles.includes("State capital")
               && place.roles.includes("Largest city");
             const markerType = place.kind === "metro"
@@ -296,6 +315,11 @@ export default function MapPicker({ selectedLocation, onSelect }) {
                   <title>{place.name}, {place.region} — {placeRoleLabel(place)}</title>
                   <circle className="place-hit-area" r="15" />
                   <PlaceGlyph markerType={markerType} />
+                  {isSelected && (
+                    <text className="place-number" y="24" aria-hidden="true">
+                      {selectedIndex + 1}
+                    </text>
+                  )}
                   <g className="place-tooltip" aria-hidden="true">
                     <rect x={-labelWidth / 2} y="-39" width={labelWidth} height="25" rx="8" />
                     <text y="-22" textAnchor="middle">{place.name}</text>
@@ -317,6 +341,19 @@ export default function MapPicker({ selectedLocation, onSelect }) {
           </>
         )}
       </div>
+      <label className="selection-control">
+        <span>Locations: <strong>{selectionLimit === 1 ? "Single" : `Up to ${selectionLimit}`}</strong></span>
+        <input
+          type="range"
+          min="1"
+          max="3"
+          step="1"
+          value={selectionLimit}
+          onChange={onSelectionLimitChange}
+          aria-label="Maximum selected locations"
+        />
+        <small>Ctrl-click to add a point · oldest points leave first</small>
+      </label>
       <p className="map-help">
         {activeStateName
           ? `Viewing ${activeStateName}. Choose a metro or city marker, or click the map to refine the location.`

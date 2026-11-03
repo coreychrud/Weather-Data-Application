@@ -215,6 +215,27 @@ class OpenMeteoClient:
         )
         return await self._get(f"{self._historical_base_url}/archive", params)
 
+    async def get_historical_weather_for_month(
+        self,
+        *,
+        month_start: date,
+        month_end: date,
+        latitude: float,
+        longitude: float,
+        timezone: str,
+        units: UnitSystem,
+    ) -> dict[str, Any]:
+        params: dict[str, str | int | float] = {
+            "latitude": latitude,
+            "longitude": longitude,
+            "daily": "temperature_2m_max,temperature_2m_min",
+            "start_date": month_start.isoformat(),
+            "end_date": month_end.isoformat(),
+            "timezone": timezone,
+        }
+        params.update(self._unit_params(units))
+        return await self._get(f"{self._historical_base_url}/archive", params)
+
     @staticmethod
     def _day_params(
         *,
@@ -277,4 +298,3 @@ class OpenMeteoClient:
         if not isinstance(payload, (dict, list)):
             raise OpenMeteoResponseError
         return payload
-

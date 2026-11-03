@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   formatDateLabel,
   formatTime,
@@ -6,6 +7,8 @@ import {
   weatherDescriptions,
   weatherSymbol,
 } from "./weather.js";
+import { timeDay, timeMonth, timeSunday } from "d3-time";
+import { heatmapScale } from "./heatmap.js";
 
 function Metric({ label, value }) {
   return (
@@ -38,6 +41,7 @@ export function EmptyWeather({ mode }) {
     current: ["Current conditions", "Select a location to see what it feels like there right now."],
     forecast: ["Seven-day forecast", "Select a location to compare the week ahead and inspect hourly temperatures."],
     historical: ["Weather history", "Choose a date, then select a location to explore that day hour by hour."],
+    monthly: ["A month in the past", "Choose a month, then select a location to compare its daily high and low temperatures."],
   }[mode];
 
   return (
@@ -254,6 +258,114 @@ export function HistoricalWeather({ data, location }) {
             <small>{formatValue(row.humidity, "%")} humidity</small>
           </div>
         ))}
+      </div>
+    </section>
+  );
+}
+
+export function MonthlyWeather({ data, location }) {
+  const [gradientMetric, setGradientMetric] = useState("high");
+  const dates = data.daily.time;
+  const highs = data.daily.temperature_2m_max;
+  const lows = data.daily.temperature_2m_min;
+  const entries = dates.map((date, index) => ({
+    date,
+    high: highs[index],
+    low: lows[index],
+  }));
+  const monthDate = new Date(`${dates[0]}T12:00:00`);
+  const gridStart = timeSunday.floor(timeMonth.floor(monthDate));
+  const validHighs = highs.filter((value) => value != null);
+  const validLows = lows.filter((value) => value != null);
+  const average = (values) => values.length
+    ? values.reduce((sum, value) => sum + value, 0) / values.length
+    : null;
+  const gradientValues = gradientMetric === "high" ? highs : lows;
+  const validGradientValues = gradientValues.filter((value) => value != null);
+  const temperatureScale = heatmapScale("temperature");
+  const temperatureUnit = data.daily_units.temperature_2m_max;
+  const temperatureColor = (value) => {
+    if (value == null || !validGradientValues.length) return "#d9e1e5";
+    const celsius = temperatureUnit === "°F" ? (value - 32) * 5 / 9 : value;
+    return temperatureScale.color(celsius);
+  };
+  const calendarGradient = `linear-gradient(to right, ${Array.from(
+    { length: 21 },
+    (_, index) => temperatureScale.color(
+      temperatureScale.min + index / 20 * (temperatureScale.max - temperatureScale.min),
+    ),
+  ).join(", ")})`;
+  const width = 700;
+  const cellWidth = width / 7;
+  const cellHeight = 82;
+  const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  return (
+    <section className="weather-card monthly-card">
+      <div className="card-heading">
+        <ConditionHeading
+          eyebrow={`Historical month · ${data.timezone_abbreviation}`}
+          location={location}
+          title={new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(monthDate)}
+        />
+      </div>
+      <div className="metrics-grid compact monthly-summary">
+        <Metric label="Average high" value={formatValue(average(validHighs), data.daily_units.temperature_2m_max)} />
+        <Metric label="Average low" value={formatValue(average(validLows), data.daily_units.temperature_2m_min)} />
+        <Metric label="Days recorded" value={`${validHighs.length} of ${entries.length}`} />
+      </div>
+      <div className="calendar-controls">
+        <span className="calendar-control-label">Gradient based off</span>
+        <div className="calendar-toggle" role="group" aria-label="Gradient based off High or Low">
+          <button
+            type="button"
+            className={gradientMetric === "high" ? "active" : ""}
+            aria-pressed={gradientMetric === "high"}
+            onClick={() => setGradientMetric("high")}
+          >
+            High
+          </button>
+          <button
+            type="button"
+            className={gradientMetric === "low" ? "active" : ""}
+            aria-pressed={gradientMetric === "low"}
+            onClick={() => setGradientMetric("low")}
+          >
+            Low
+          </button>
+        </div>
+        <span className="calendar-gradient-key" aria-hidden="true">
+        <span>Cooler</span><i style={{ background: calendarGradient }} /><span>Hotter</span>
+        </span>
+      </div>
+      <div className="calendar-wrap">
+        <svg className="weather-calendar" viewBox={`0 0 ${width} ${cellHeight * 6 + 30}`} role="img" aria-label="Daily historical high and low temperatures calendar">
+          {dayLabels.map((label, index) => (
+            <text key={label} x={index * cellWidth + cellWidth / 2} y="18" className="calendar-weekday" textAnchor="middle">{label}</text>
+          ))}
+          {entries.map((entry) => {
+            const dayDate = new Date(`${entry.date}T12:00:00`);
+            const dayIndex = timeDay.count(gridStart, dayDate);
+            const column = dayIndex % 7;
+            const row = Math.floor(dayIndex / 7);
+            const x = column * cellWidth;
+            const y = row * cellHeight + 30;
+            return (
+              <g key={entry.date} transform={`translate(${x}, ${y})`} className="calendar-day">
+                <rect
+                  width={cellWidth - 5}
+                  height={cellHeight - 5}
+                  rx="10"
+                  style={{ fill: temperatureColor(entry[gradientMetric]) }}
+                />
+                <text x="10" y="21" className="calendar-date">{Number(entry.date.slice(-2))}</text>
+                <text x="10" y="46" className="calendar-high">{formatValue(entry.high, data.daily_units.temperature_2m_max)}</text>
+                <text x="10" y="65" className="calendar-low">{formatValue(entry.low, data.daily_units.temperature_2m_min)}</text>
+                <title>{`${formatDateLabel(entry.date)}: high ${formatValue(entry.high, data.daily_units.temperature_2m_max)}, low ${formatValue(entry.low, data.daily_units.temperature_2m_min)}`}</title>
+              </g>
+            );
+          })}
+        </svg>
       </div>
     </section>
   );

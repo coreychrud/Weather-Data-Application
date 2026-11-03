@@ -92,6 +92,19 @@ curl --get 'http://127.0.0.1:8000/api/v1/weather/historical/2020-01-15' \
   --data-urlencode 'units=metric'
 ```
 
+Request daily highs and lows for one historical month:
+
+```bash
+curl --get 'http://127.0.0.1:8000/api/v1/weather/historical/month/2020/1' \
+  --data-urlencode 'latitude=41.8781' \
+  --data-urlencode 'longitude=-87.6298' \
+  --data-urlencode 'timezone=auto' \
+  --data-urlencode 'units=metric'
+```
+
+The frontend's **A month in the past** tab presents this daily data in a D3
+calendar and summarizes the month's average high and low.
+
 Dates use ISO 8601 `YYYY-MM-DD` format. The forecast route is limited by the
 upstream forecast horizon. The historical route uses Open-Meteo's Archive API,
 whose reanalysis data is available from 1940, with dataset-specific delays and
@@ -143,6 +156,8 @@ docker run --rm -p 8000:8000 weather-data-api
   date.
 - `GET /api/v1/weather/historical/{weather_date}` retrieves reanalysis-based
   historical weather for one date.
+- `GET /api/v1/weather/historical/month/{year}/{month}` retrieves daily
+  historical high and low temperatures for a completed month.
 - `POST /api/v1/weather/heatmap` accepts a JSON body with `weather_date` and
   `points` (1–384 objects containing `latitude` and `longitude`). It returns
   ordered `samples` with daily mean `temperature` in °C and daily total

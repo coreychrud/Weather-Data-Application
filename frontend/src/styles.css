@@ -113,7 +113,7 @@ h2 {
 
 .mode-tabs {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   overflow: hidden;
   border: 1px solid #d4dfe1;
   border-radius: 18px;
@@ -736,6 +736,63 @@ h2 {
 .hourly-reading b { color: #277c78; font-family: Georgia, serif; font-size: 1.1rem; }
 .hourly-reading strong { font-size: 0.88rem; }
 
+.monthly-card { padding-bottom: 28px; }
+.monthly-summary { margin-top: 30px; }
+.calendar-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+  margin-top: 22px;
+  color: #5f6f7d;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.calendar-control-label { color: #405461; }
+.calendar-toggle {
+  display: inline-flex;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid #cbd7da;
+  border-radius: 999px;
+  background: #f3f8f7;
+}
+.calendar-toggle button {
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 12px;
+  color: #5f6f7d;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+.calendar-toggle button.active {
+  color: #fff;
+  background: #163f4b;
+}
+.calendar-gradient-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  font-weight: 600;
+}
+.calendar-gradient-key i {
+  display: inline-block;
+  width: 76px;
+  height: 14px;
+  border-radius: 4px;
+}
+.calendar-wrap { overflow-x: auto; margin-top: 24px; }
+.weather-calendar { display: block; min-width: 620px; width: 100%; }
+.calendar-weekday { fill: #72818a; font-size: 11px; font-weight: 800; }
+.calendar-day rect { fill: #f3f8f7; stroke: #d8e3e4; }
+.calendar-day:hover rect { fill: #e4f3f0; stroke: #57aaa3; }
+.calendar-date { fill: #000; font-size: 11px; font-weight: 800; }
+.calendar-high { fill: #635d5d; font-size: 17px; font-weight: 800; }
+.calendar-low { fill: #635d5d; font-size: 13px; font-weight: 700; }
+
 .loader {
   width: 46px;
   height: 46px;
@@ -769,6 +826,7 @@ h2 {
   .app-shell { padding-top: 26px; }
   .site-header { align-items: flex-start; }
   .unit-toggle { margin-top: 8px; }
+  .mode-tabs { grid-template-columns: repeat(5, minmax(110px, 1fr)); overflow-x: auto; }
   .mode-tabs button { min-height: 66px; padding: 14px 10px; text-align: center; }
   .mode-tabs span { display: none; }
   .mode-toolbar { align-items: flex-start; flex-direction: column; gap: 10px; padding: 14px 2px; }

@@ -132,6 +132,28 @@ class DayWeatherResponse(BaseModel):
     daily: DayDailyWeather
 
 
+class MonthlyDailyWeather(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    time: list[str]
+    temperature_2m_max: list[float | None]
+    temperature_2m_min: list[float | None]
+
+
+class MonthlyWeatherResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    category: WeatherCategory
+    latitude: float
+    longitude: float
+    generationtime_ms: float
+    utc_offset_seconds: int
+    timezone: str
+    timezone_abbreviation: str
+    elevation: float
+    daily_units: dict[str, str]
+    daily: MonthlyDailyWeather
+
+
 class HealthResponse(BaseModel):
     status: str
-

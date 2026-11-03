@@ -62,6 +62,13 @@ export function offsetDate(days) {
   return date.toISOString().slice(0, 10);
 }
 
+export function offsetMonth(months) {
+  const date = new Date();
+  date.setDate(1);
+  date.setMonth(date.getMonth() + months);
+  return date.toISOString().slice(0, 7);
+}
+
 export function hourlyRows(hourly) {
   if (!hourly?.time) return [];
   return hourly.time.map((time, index) => ({

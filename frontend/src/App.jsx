@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getDayWeather, getForecast } from "./api/weather.js";
+import { getDayWeather, getForecast, getMonthWeather } from "./api/weather.js";
 import MapPicker from "./MapPicker.jsx";
 import Heatmap from "./Heatmap.jsx";
 import {
@@ -8,14 +8,16 @@ import {
   ErrorWeather,
   ForecastWeather,
   HistoricalWeather,
+  MonthlyWeather,
   LoadingWeather,
 } from "./WeatherViews.jsx";
-import { offsetDate } from "./weather.js";
+import { offsetDate, offsetMonth } from "./weather.js";
 
 const modes = [
   { id: "current", label: "Current", description: "Conditions right now" },
   { id: "forecast", label: "Forecast", description: "The next seven days" },
-  { id: "historical", label: "History", description: "A day in the past" },
+  { id: "historical", label: "History By Day", description: "A day in the past" },
+  { id: "monthly", label: "History By Month", description: "A month in the past" },
   { id: "heatmap", label: "Heatmap", description: "Daily weather across the map" },
 ];
 
@@ -24,6 +26,7 @@ function App() {
   const [units, setUnits] = useState("imperial");
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [historyDate, setHistoryDate] = useState(() => offsetDate(-7));
+  const [historyMonth, setHistoryMonth] = useState(() => offsetMonth(-1));
   const [dataRecord, setDataRecord] = useState(null);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -31,7 +34,7 @@ function App() {
   const [retryCount, setRetryCount] = useState(0);
 
   const requestKey = selectedLocation
-    ? [mode, units, historyDate, selectedLocation.latitude, selectedLocation.longitude].join("|")
+    ? [mode, units, historyDate, historyMonth, selectedLocation.latitude, selectedLocation.longitude].join("|")
     : "";
 
   useEffect(() => {
@@ -53,7 +56,14 @@ function App() {
         signal: controller.signal,
         ...selectedLocation,
       })
-      : getForecast({
+      : mode === "monthly"
+        ? getMonthWeather({
+          month: historyMonth,
+          units,
+          signal: controller.signal,
+          ...selectedLocation,
+        })
+        : getForecast({
         days: mode === "forecast" ? 7 : 1,
         units,
         signal: controller.signal,
@@ -70,7 +80,7 @@ function App() {
       });
 
     return () => controller.abort();
-  }, [historyDate, mode, requestKey, retryCount, selectedLocation, units]);
+  }, [historyDate, historyMonth, mode, requestKey, retryCount, selectedLocation, units]);
 
   const selectedMode = modes.find((item) => item.id === mode);
   const data = dataRecord?.key === requestKey ? dataRecord.payload : null;
@@ -96,6 +106,9 @@ function App() {
     }
     if (mode === "historical") {
       weatherContent = <HistoricalWeather data={data} location={selectedLocation} />;
+    }
+    if (mode === "monthly") {
+      weatherContent = <MonthlyWeather data={data} location={selectedLocation} />;
     }
   }
 
@@ -141,6 +154,19 @@ function App() {
               onChange={(event) => setHistoryDate(event.target.value)}
             />
             <small>Archive data can lag by several days.</small>
+          </label>
+        )}
+        {mode === "monthly" && (
+          <label className="date-control">
+            <span>Historical month</span>
+            <input
+              type="month"
+              value={historyMonth}
+              min="1940-01"
+              max={offsetMonth(-1)}
+              onChange={(event) => setHistoryMonth(event.target.value)}
+            />
+            <small>Daily highs and lows are from historical reanalysis.</small>
           </label>
         )}
       </div>

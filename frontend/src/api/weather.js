@@ -49,3 +49,12 @@ export function getDayWeather({ category, date, latitude, longitude, units, sign
   const query = buildQuery(latitude, longitude, units);
   return requestWeather(`/api/v1/weather/${category}/${date}?${query}`, signal);
 }
+
+export function getMonthWeather({ month, latitude, longitude, units, signal }) {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const query = buildQuery(latitude, longitude, units);
+  return requestWeather(
+    `/api/v1/weather/historical/month/${year}/${monthNumber}?${query}`,
+    signal,
+  );
+}

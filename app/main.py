@@ -1,5 +1,6 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from calendar import monthrange
 from datetime import date, datetime, timedelta, timezone as datetime_timezone
 from typing import Annotated
 
@@ -14,6 +15,7 @@ from app.models import (
     HealthResponse,
     HeatmapRequest,
     HeatmapResponse,
+    MonthlyWeatherResponse,
     UnitSystem,
     WeatherCategory,
 )
@@ -238,8 +240,50 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             client=client,
         )
 
+    @application.get(
+        "/api/v1/weather/historical/month/{year}/{month}",
+        response_model=MonthlyWeatherResponse,
+        tags=["weather"],
+        summary="Retrieve daily high and low temperatures for one historical month",
+    )
+    async def historical_weather_for_month(
+        year: Annotated[int, Path(ge=1940, le=2100)],
+        month: Annotated[int, Path(ge=1, le=12)],
+        client: OpenMeteoClientDependency,
+        latitude: Annotated[float, Query(ge=-90, le=90, examples=[41.8781])],
+        longitude: Annotated[float, Query(ge=-180, le=180, examples=[-87.6298])],
+        timezone: Annotated[str, Query(min_length=1, max_length=100)] = "auto",
+        units: UnitSystem = UnitSystem.metric,
+    ) -> dict[str, object]:
+        month_start = date(year, month, 1)
+        today = datetime.now(datetime_timezone.utc).date()
+        if month_start >= date(today.year, today.month, 1):
+            raise HTTPException(
+                status_code=422, detail="Choose a month that has already ended."
+            )
+        try:
+            payload = await client.get_historical_weather_for_month(
+                month_start=month_start,
+                month_end=date(year, month, monthrange(year, month)[1]),
+                latitude=latitude,
+                longitude=longitude,
+                timezone=timezone,
+                units=units,
+            )
+        except OpenMeteoRequestError as exc:
+            raise HTTPException(
+                status_code=422,
+                detail="Open-Meteo rejected the month or request parameters",
+            ) from exc
+        except OpenMeteoTimeoutError as exc:
+            raise HTTPException(status_code=504, detail="Open-Meteo timed out") from exc
+        except OpenMeteoResponseError as exc:
+            raise HTTPException(
+                status_code=502, detail="Open-Meteo returned an invalid response"
+            ) from exc
+        return {**payload, "category": WeatherCategory.historical}
+
     return application
 
 
 app = create_app()
-

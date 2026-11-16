@@ -12,6 +12,7 @@ import {
   LoadingWeather,
 } from "./WeatherViews.jsx";
 import { offsetDate, offsetMonth } from "./weather.js";
+import LocationSearch from "./LocationSearch.jsx";
 
 const modes = [
   { id: "current", label: "Current", description: "Conditions right now" },
@@ -171,7 +172,10 @@ function App() {
           </label>
         )}
       </div>
-
+      {mode !== "heatmap" && (
+        <LocationSearch onSelect={selectLocation} />
+      )}
+      
       {mode === "heatmap" ? <Heatmap units={units} /> : <section className="content-grid">
         <MapPicker
           selectedLocations={selectedLocations}

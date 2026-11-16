@@ -267,6 +267,49 @@ class OpenMeteoClient:
             }
         return {}
 
+    async def search_locations(
+        self, name: str, count: int = 5
+    ) -> list[dict[str, Any]]:
+        """Find geographic coordinates for a place name."""
+        payload = await self._get(
+            "https://geocoding-api.open-meteo.com/v1/search",
+            {"name": name, "count": count, "language": "en", "format": "json"},
+        )
+
+        results = payload.get("results", [])
+        if not isinstance(results, list):
+            raise OpenMeteoResponseError
+
+        locations = []
+        for result in results:
+            if not isinstance(result, dict):
+                raise OpenMeteoResponseError
+
+            latitude = result.get("latitude")
+            longitude = result.get("longitude")
+            place_name = result.get("name")
+
+            if (
+                not isinstance(place_name, str)
+                or not isinstance(latitude, (int, float))
+                or not isinstance(longitude, (int, float))
+                or isinstance(latitude, bool)
+                or isinstance(longitude, bool)
+                or not -90 <= latitude <= 90
+                or not -180 <= longitude <= 180
+            ):
+                raise OpenMeteoResponseError
+
+            locations.append({
+                "name": place_name,
+                "latitude": latitude,
+                "longitude": longitude,
+                "admin1": result.get("admin1"),
+                "country": result.get("country"),
+            })
+
+        return locations
+
     async def _get(
         self, url: str, params: dict[str, str | int | float]
     ) -> dict[str, Any]:

@@ -299,3 +299,55 @@ def test_translates_invalid_upstream_response() -> None:
         "detail": "Open-Meteo returned an invalid response"
     }
 
+
+def test_search_locations() -> None:
+    service = AsyncMock()
+    locations = [
+        {
+            "name": "Austin",
+            "latitude": 30.26715,
+            "longitude": -97.74306,
+            "admin1": "Texas",
+            "country": "United States",
+        }
+    ]
+    service.search_locations.return_value = locations
+
+    with make_client(service) as client:
+        response = client.get(
+            "/api/v1/locations/search",
+            params={"name": "Austin"},
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {"results": locations}
+    service.search_locations.assert_awaited_once_with(
+        name="Austin", count=5
+    )
+
+
+def test_search_locations_rejects_short_name() -> None:
+    service = AsyncMock()
+
+    with make_client(service) as client:
+        response = client.get(
+            "/api/v1/locations/search",
+            params={"name": "A"},
+        )
+
+    assert response.status_code == 422
+    service.search_locations.assert_not_awaited()
+
+
+def test_search_locations_handles_no_results() -> None:
+    service = AsyncMock()
+    service.search_locations.return_value = []
+
+    with make_client(service) as client:
+        response = client.get(
+            "/api/v1/locations/search",
+            params={"name": "NonexistentPlace"},
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {"results": []}

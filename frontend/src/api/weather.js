@@ -58,3 +58,24 @@ export function getMonthWeather({ month, latitude, longitude, units, signal }) {
     signal,
   );
 }
+
+export async function searchLocations(name, signal) {
+  const query = new URLSearchParams({ name, count: "5" });
+
+  const response = await fetch(
+    `/api/v1/locations/search?${query}`,
+    { signal },
+  );
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(
+      typeof error.detail === "string"
+        ? error.detail
+        : `Location search failed (${response.status})`,
+    );
+  }
+
+  const data = await response.json();
+  return data.results;
+}

@@ -26,6 +26,7 @@ from app.open_meteo import (
     OpenMeteoTimeoutError,
 )
 
+from app.location_parser import extract_location
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     resolved_settings = settings or Settings.from_environment()
@@ -56,6 +57,39 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     async def health() -> HealthResponse:
         return HealthResponse(status="ok")
+
+    @application.get(
+        "/api/v1/locations/search",
+        tags=["locations"],
+        summary="Find coordinates for a location name",
+    )
+    async def search_locations(
+        client: OpenMeteoClientDependency,
+        name: Annotated[str, Query(min_length=2, max_length=100)],
+        count: Annotated[int, Query(ge=1, le=10)] = 5,
+    ) -> dict[str, object]:
+        try:
+            location_name = extract_location(name)
+            locations = await client.search_locations(name=location_name, count=count)
+            return {"results": locations}
+
+        except OpenMeteoRequestError as exc:
+            raise HTTPException(
+                status_code=422,
+                detail="Open-Meteo rejected the location search.",
+            ) from exc
+
+        except OpenMeteoTimeoutError as exc:
+            raise HTTPException(
+                status_code=504,
+                detail="Location search timed out. Please try again.",
+            ) from exc
+
+        except OpenMeteoResponseError as exc:
+            raise HTTPException(
+                status_code=502,
+                detail="Open-Meteo returned an invalid location response.",
+            ) from exc
 
     @application.post(
         "/api/v1/weather/heatmap",

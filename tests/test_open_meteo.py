@@ -160,3 +160,94 @@ def test_translates_timeouts() -> None:
 
     with pytest.raises(OpenMeteoTimeoutError):
         asyncio.run(run())
+
+
+def test_search_locations_returns_coordinates() -> None:
+    captured_request: httpx.Request | None = None
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal captured_request
+        captured_request = request
+        return httpx.Response(
+            200,
+            json={
+                "results": [
+                    {
+                        "name": "Austin",
+                        "latitude": 30.26715,
+                        "longitude": -97.74306,
+                        "admin1": "Texas",
+                        "country": "United States",
+                    }
+                ]
+            },
+        )
+
+    async def run() -> list[dict]:
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(handler)
+        ) as http_client:
+            client = OpenMeteoClient(
+                http_client, "https://example.test/v1"
+            )
+            return await client.search_locations("Austin")
+
+    locations = asyncio.run(run())
+
+    assert len(locations) == 1
+    assert locations[0]["name"] == "Austin"
+    assert locations[0]["latitude"] == 30.26715
+    assert locations[0]["longitude"] == -97.74306
+    assert locations[0]["admin1"] == "Texas"
+
+    assert captured_request is not None
+    assert captured_request.url.host == "geocoding-api.open-meteo.com"
+    assert captured_request.url.path == "/v1/search"
+    assert captured_request.url.params["name"] == "Austin"
+    assert captured_request.url.params["count"] == "5"
+
+
+def test_search_locations_handles_no_results() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={})
+
+    async def run() -> list[dict]:
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(handler)
+        ) as http_client:
+            client = OpenMeteoClient(
+                http_client, "https://example.test/v1"
+            )
+            return await client.search_locations("NonexistentPlace")
+
+    locations = asyncio.run(run())
+
+    assert locations == []
+
+
+def test_search_locations_rejects_invalid_coordinates() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "results": [
+                    {
+                        "name": "Invalid",
+                        "latitude": 150,
+                        "longitude": -97.74306,
+                    }
+                ]
+            },
+        )
+
+    async def run() -> None:
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(handler)
+        ) as http_client:
+            client = OpenMeteoClient(
+                http_client, "https://example.test/v1"
+            )
+            await client.search_locations("Invalid")
+
+    with pytest.raises(OpenMeteoResponseError):
+        asyncio.run(run())

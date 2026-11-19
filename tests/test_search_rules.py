@@ -102,3 +102,67 @@ def test_discover_questions(query, condition, months, region, limit) -> None:
     assert intent.region == region
     assert intent.limit == limit
     assert intent.places == []
+
+from app.search.dates import nth_weekday
+from app.search.evaluate import DATA_DIR, evaluate
+
+
+@pytest.mark.parametrize(
+    ("holiday", "expected"),
+    [
+        ((2026, 11, 3, 4), date(2026, 11, 26)),   # Thanksgiving: 4th Thursday of November
+        ((2025, 5, 0, -1), date(2025, 5, 26)),    # Memorial Day: last Monday of May
+        ((2024, 9, 0, 1), date(2024, 9, 2)),      # Labor Day: 1st Monday of September
+        ((2025, 1, 0, 3), date(2025, 1, 20)),     # MLK Day: 3rd Monday of January
+        ((2024, 5, 6, 2), date(2024, 5, 12)),     # Mother's Day: 2nd Sunday of May
+    ],
+)
+def test_nth_weekday(holiday, expected) -> None:
+    assert nth_weekday(*holiday) == expected
+
+
+def test_moving_holidays_in_questions() -> None:
+    assert parsed("Houston on Thanksgiving").date == date(2026, 11, 26)
+    assert parsed("Chicago weather on Memorial Day 2025").date == date(2025, 5, 26)
+    mothers_day = parsed("Mother's Day 2024 Boston")
+    assert (mothers_day.places, mothers_day.date) == (["Boston"], date(2024, 5, 12))
+
+
+@pytest.mark.parametrize(
+    ("query", "condition", "months"),
+    [
+        ("where can I wear shorts in January", Condition.warm, [1]),
+        ("escape the snow", Condition.warm, [1, 2, 12]),         # default: winter
+        ("escape the heat", Condition.cool, [6, 7, 8]),          # default: summer
+        ("places with no rain in April", Condition.dry, [4]),    # not "rainy"
+        ("where should I go skiing", Condition.snowy, []),
+        ("white christmas cities", Condition.snowy, [12]),
+        ("blue skies all year", Condition.sunny, []),
+        ("perfect weather in May", Condition.mild, [5]),
+        ("warm places for Thanksgiving", Condition.warm, [11]),  # holiday -> its month
+    ],
+)
+def test_everyday_phrases(query, condition, months) -> None:
+    intent = parsed(query)
+    assert intent.mode is SearchMode.discover
+    assert intent.condition is condition
+    assert intent.months == months
+
+
+@pytest.mark.parametrize(
+    ("query", "place"),
+    [
+        ("Austin's forecast for Friday", "Austin"),
+        ("How hot did Las Vegas get last July", "Las Vegas"),
+        ("How warm was Miami in early March 2020", "Miami"),
+        ("is it sunny in Seattle", "Seattle"),   # a condition word, but still a lookup
+    ],
+)
+def test_phrasing_quirks(query, place) -> None:
+    assert parsed(query).places == [place]
+
+
+def test_dev_set_stays_accurate() -> None:
+    """The questions used while improving the rules. Catches regressions."""
+    result = evaluate(DATA_DIR / "search_dev.jsonl")
+    assert result["exact"] / result["questions"] >= 0.95, result["misses"]

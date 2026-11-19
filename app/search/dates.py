@@ -27,6 +27,16 @@ HOLIDAYS = {
     "independence day": (7, 4), "fourth of july": (7, 4), "4th of july": (7, 4),
     "july 4th": (7, 4), "valentine's day": (2, 14), "valentines day": (2, 14),
 }
+# Holidays on "the Nth weekday of a month": (month, weekday 0=Monday, N; -1 = last).
+MOVING_HOLIDAYS = {
+    "thanksgiving": (11, 3, 4), "thanksgiving day": (11, 3, 4),
+    "memorial day": (5, 0, -1), "labor day": (9, 0, 1),
+    "mlk day": (1, 0, 3), "martin luther king day": (1, 0, 3),
+    "martin luther king jr day": (1, 0, 3),
+    "presidents day": (2, 0, 3), "presidents' day": (2, 0, 3), "president's day": (2, 0, 3),
+    "mother's day": (5, 6, 2), "mothers day": (5, 6, 2),
+    "father's day": (6, 6, 3), "fathers day": (6, 6, 3),
+}
 NUMBER_WORDS = {
     "a": 1, "an": 1, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
     "seven": 7, "eight": 8, "nine": 9, "ten": 10, "fourteen": 14, "fifteen": 15,
@@ -42,6 +52,7 @@ def _alternatives(words) -> str:
 MONTH = _alternatives(MONTHS)
 WEEKDAY = _alternatives(WEEKDAYS)
 HOLIDAY = _alternatives(HOLIDAYS)
+MOVING_HOLIDAY = _alternatives(MOVING_HOLIDAYS)
 NUMBER = r"\d{1,2}|" + _alternatives(NUMBER_WORDS)
 
 
@@ -82,6 +93,24 @@ def _holiday(g, today, text):
     month, day = HOLIDAYS[g[0]]
     return _day(_safe_date(int(g[1]), month, day) if g[1] else _nearest_year(today, month, day))
 
+def _moving_holiday(g, today, text):
+    month, weekday, n = MOVING_HOLIDAYS[g[0]]
+    if g[1]:
+        return _day(nth_weekday(int(g[1]), month, weekday, n))
+    # No year: this year's, unless that's beyond the forecast range.
+    candidate = nth_weekday(today.year, month, weekday, n)
+    if candidate > today + timedelta(days=15):
+        candidate = nth_weekday(today.year - 1, month, weekday, n)
+    return _day(candidate)
+
+
+def nth_weekday(year: int, month: int, weekday: int, n: int) -> date:
+    """The nth weekday of a month (n=-1 for the last): Thanksgiving is (11, 3, 4)."""
+    if n > 0:
+        first = date(year, month, 1)
+        return first + timedelta(days=(weekday - first.weekday()) % 7 + 7 * (n - 1))
+    last = date(year, month, monthrange(year, month)[1])
+    return last - timedelta(days=(last.weekday() - weekday) % 7)
 
 def _month_day(g, today, text):
     if g[0] == "may" and not re.search(r"may\s+\d", text):
@@ -189,6 +218,8 @@ RULES: list[tuple[str, Callable]] = [
     (r"\b(?:this|next|the|coming) weekend\b", _weekend),
     (rf"\b(last|this past|this|next|on|coming)?\s*({WEEKDAY})\b", _weekday),
     (rf"\b(?:in|during|of|for)\s+({MONTH})\b", _last_named_month),
+    (rf"\b({MOVING_HOLIDAY})(?:,?\s+(?:of\s+)?(\d{{4}}))?", _moving_holiday),
+    (rf"\b({HOLIDAY})(?:,?\s+(?:of\s+)?(\d{{4}}))?", _holiday),
 ]
 
 

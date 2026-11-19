@@ -46,7 +46,7 @@ CONDITIONS = [
     (Condition.sunny, r"sunn(?:y|iest|ier)|sunshine|sun|clear skies|bright"),
     (Condition.hot, r"hot(?:test|ter)?|scorching|sweltering"),
     (Condition.warm, r"warm(?:est|er)?|balmy|tropical"),
-    (Condition.mild, r"mild(?:est)?|pleasant|nice weather|temperate|comfortable|perfect weather"),
+    (Condition.mild, r"mild(?:est)?|pleasant|temperate|comfortable"),
     (Condition.cool, r"cool(?:est|er)?"),
     (Condition.cold, r"cold(?:est|er)?|freezing|frigid|chilly"),
     (Condition.dry, r"dry|driest|drier|arid"),
@@ -54,6 +54,29 @@ CONDITIONS = [
     (Condition.snowy, r"snow(?:y|iest|ier)?|ski(?:ing)?"),
 ]
 CONDITION_RE = [(condition, re.compile(rf"\b(?:{words})\b")) for condition, words in CONDITIONS]
+# Everyday phrases that mean a condition without naming it. Checked before the
+# single words above, so "escape the snow" means warm, not snowy, and "no rain"
+# means dry, not rainy. The third value is the months to use if none are given.
+WINTER, SUMMER = [12, 1, 2], [6, 7, 8]
+CONDITION_PHRASES = [
+    (Condition.warm, r"wear(?:ing)? (?:shorts|a t-?shirt|t-?shirts|sandals|flip[- ]flops)"
+                     r"|(?:t-?shirt|shorts|pool) weather|beach(?: weather| days?)?", None),
+    (Condition.warm, r"(?:escape|avoid|get away from|away from|out of|beat) (?:the )?"
+                     r"(?:cold|snow|winter|freeze|chill)", WINTER),
+    (Condition.cool, r"(?:escape|avoid|get away from|away from|out of|beat) (?:the )?"
+                     r"(?:summer )?(?:heat|humidity)", SUMMER),
+    (Condition.cool, r"(?:sweater|hoodie|jacket|flannel) weather", None),
+    (Condition.snowy, r"white christmas", [12]),
+    (Condition.snowy, r"ski(?:ing)?|snowboard(?:ing)?|build a snowman", None),
+    (Condition.dry, r"(?:no|least|less|little|without|avoid(?: the)?|rarely|hardly ever|never) "
+                    r"(?:rain|rains|rainy|rainfall)|stay dry|not rainy", None),
+    (Condition.sunny, r"lots of (?:sun|sunshine)|blue skies?|(?:get|catch) some sun|vitamin d"
+                      r"|most (?:sun|sunshine)", None),
+    (Condition.mild, r"not too (?:hot|cold)|neither hot nor cold"
+                     r"|(?:perfect|nice|good|great|ideal) weather", None),
+]   
+CONDITION_PHRASE_RE = [(condition, re.compile(rf"\b(?:{words})\b"), months)
+                       for condition, words, months in CONDITION_PHRASES]
 DISCOVER_CUES = re.compile(
     r"\b(somewhere|anywhere|where|which (?:city|cities|place|places|state)|cities|places"
     r"|towns|spots|destinations|locations|best place|top \d+|rank\w*)\b"
@@ -78,8 +101,10 @@ PLACE_STOP = re.compile(
     r"¦|[?!;]|\b(on|during|from|between|this|next|last|tomorrow|today|yesterday|tonight"
     r"|right|now|please|weather|forecast|forecasts|temperature|temperatures|temps?"
     r"|rain|rainfall|precipitation|snow|was|is|are|were|will|be|like|been|compared?"
-    r"|daily|hourly|over|across|in|for|at|by|using|show|showing|with)\b"
+    r"|daily|hourly|over|across|in|for|at|by|using|show|showing|with"
+    r"|get|got|feel|look|looks|early|mid|late|winter|spring|summer|fall|autumn|year)\b"
 )
+
 PLACE_PREFIX = re.compile(r"\b(?:in|for|at|near|around|over|across|of)\s+")
 SUBJECT_BEFORE_KEYWORD = re.compile(
     r"^\s*(?:(?:what(?:'s| is| was)|how(?:'s| is| was)|show(?: me)?|get|give me|tell me)\s+)?"
@@ -131,14 +156,19 @@ def parse_rules(query: str, today: date) -> SearchIntent:
     found = find_date(lower, today)
     if found:
         blank(found.start, found.end)
+    if year_round := YEAR_ROUND.search(lower):
+        blank(*year_round.span())  # "all year" isn't a place
+
+    condition, condition_span, default_months = _find_condition(lower)
+    if condition_span:
+        blank(*condition_span)  # "escape the cold" isn't a place
 
     places = _extract_places(text, "".join(masked))
     national = [place for place in places if place.lower().strip(" .") in NATIONAL]
     places = [place for place in places if place not in national]
 
-    condition = _find_condition(lower)
     if condition and _is_discover(lower, places, heatmap):
-        return _discover_intent(lower, condition, places, units, today)
+        return _discover_intent(lower, condition, places, units, today, default_months, found)
 
     if heatmap or national:
         return SearchIntent(
@@ -185,11 +215,21 @@ def parse_rules(query: str, today: date) -> SearchIntent:
 # Discover searches
 # ---------------------------------------------------------------------------
 
-def _find_condition(lower: str) -> Condition | None:
-    """The condition word that appears first in the question."""
-    hits = [(match.start(), condition) for condition, pattern in CONDITION_RE
+def _find_condition(lower: str):
+    """(condition, (start, end) of a matched phrase, default months).
+
+    Everyday phrases win over single words; otherwise the earliest word wins.
+    """
+    for condition, pattern, months in CONDITION_PHRASE_RE:
+        if match := pattern.search(lower):
+            return condition, match.span(), months
+    hits = [(match.start(), match.end(), condition) for condition, pattern in CONDITION_RE
             if (match := pattern.search(lower))]
-    return min(hits)[1] if hits else None
+    if not hits:
+        return None, None, None
+    # Single words aren't blanked: "how cold did Minneapolis get" needs "cold"
+    # to find the place.
+    return min(hits)[2], None, None
 
 
 def _is_discover(lower: str, places: list[str], heatmap) -> bool:
@@ -200,7 +240,7 @@ def _is_discover(lower: str, places: list[str], heatmap) -> bool:
     return bool(DISCOVER_CUES.search(lower)) or not cities
 
 
-def _discover_intent(lower, condition, places, units, today) -> SearchIntent:
+def _discover_intent(lower, condition, places, units, today, default_months=None, found=None) -> SearchIntent:
     if YEAR_ROUND.search(lower):
         months: list[int] = []
     elif match := MONTH_RANGE.search(lower):
@@ -211,10 +251,12 @@ def _discover_intent(lower, condition, places, units, today) -> SearchIntent:
     elif names := [name for name in MONTH_NAME.findall(lower)
                    if name != "may" or re.search(r"\b(in|during) may\b", lower)]:
         months = sorted({MONTHS[name] for name in names})
+    elif found and found.date:
+        months = [found.date.month]  # "warm places for Thanksgiving" -> November
     elif CURRENT_WORDS.search(lower):
         months = [today.month]
     else:
-        months = []
+        months = default_months or []
 
     limit = None
     if match := LIMIT.search(lower):
@@ -258,16 +300,19 @@ def _extract_places(text: str, masked: str) -> list[str]:
         start = vs.start("a")
         candidates = _split_places(text, start, _cut_at_stop(masked, start))
     if not candidates:
-        # A bare place at the start: "Portland, OR in May 2024", "Boise tomorrow".
-        segment = _cut_at_stop(masked, 0)
+        # A bare place at the start: "Portland, OR in May 2024", "Boise tomorrow",
+        # or after a blanked phrase: "Mother's Day 2024 Boston".
+        start = len(masked) - len(masked.lstrip("¦ "))
+        segment = _cut_at_stop(masked, start)
         words = segment.split()
         if 0 < len(words) <= 4 and words[0].strip("'") not in QUESTION_WORDS:
-            candidates = _split_places(text, 0, segment)
+            candidates = _split_places(text, start, segment)
 
     places: list[str] = []
     for candidate in candidates:
         cleaned = re.sub(r"^(?:the|city of|downtown)\s+", "", candidate.strip(" .,'\""), flags=re.I)
         cleaned = re.sub(r"\s+(?:the|a|an)$", "", cleaned, flags=re.I)
+        cleaned = re.sub(r"'s$", "", cleaned)  # "Austin's forecast" -> Austin
         cleaned = " ".join(cleaned.split())
         if (not cleaned or cleaned.lower() in NON_PLACES or len(cleaned) > 60
                 or cleaned.split()[0].lower() in QUESTION_WORDS):

@@ -28,6 +28,9 @@ from app.open_meteo import (
 
 from app.location_parser import extract_location
 
+from app.search.geocode import Geocoder, map_metros
+from app.search.router import router as search_router
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     resolved_settings = settings or Settings.from_environment()
 
@@ -40,6 +43,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 forecast_base_url=resolved_settings.open_meteo_base_url,
                 historical_base_url=resolved_settings.open_meteo_archive_base_url,
             )
+            app.state.search_geocoder = Geocoder(http_client, metros=map_metros())
             yield
 
     application = FastAPI(
@@ -48,6 +52,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         version="0.1.0",
         lifespan=lifespan,
     )
+    application.include_router(search_router)
 
     @application.get(
         "/health",

@@ -49,6 +49,8 @@ class SearchResponse(BaseModel):
     metric: HeatmapMetric | None = None
     locations: list[SearchLocation] = []
     needs_location: bool = False
+    place_only: bool = False
+    place_query: str | None = None
     # Heatmap and discover: two-letter state code, if the question named a state
     region: str | None = None
     # Discover

@@ -13,6 +13,7 @@ import {
 } from "./WeatherViews.jsx";
 import { offsetDate, offsetMonth } from "./weather.js";
 import LocationSearch from "./LocationSearch.jsx";
+import { forecastIndex, stateIdForRegion, toSelectedLocation } from "./search.js";
 
 const modes = [
   { id: "current", label: "Current", description: "Conditions right now" },
@@ -33,7 +34,9 @@ function App() {
   const [loadingKeys, setLoadingKeys] = useState([]);
   const [selectedForecastIndex, setSelectedForecastIndex] = useState(0);
   const [retryCount, setRetryCount] = useState(0);
-
+  // Set by search: the forecast day to open, and the heatmap's date/metric/state.
+  const [forecastFocusDate, setForecastFocusDate] = useState(null);
+  const [heatmapRequest, setHeatmapRequest] = useState(null);
   const requestKey = [mode, units, historyDate, historyMonth, retryCount].join("|");
 
   useEffect(() => {
@@ -85,10 +88,14 @@ function App() {
         record,
       ])));
       setLoadingKeys([]);
+      if (mode === "forecast" && forecastFocusDate) {
+        const firstPayload = records.find((record) => record?.payload)?.payload;
+        setSelectedForecastIndex(forecastIndex(firstPayload, forecastFocusDate));
+      }
     });
 
     return () => controller.abort();
-  }, [historyDate, historyMonth, mode, requestKey, selectedLocations, units]);
+  }, [forecastFocusDate, historyDate, historyMonth, mode, requestKey, selectedLocations, units]);
 
   function selectLocation(location, additive = false) {
     setSelectedLocations((current) => {
@@ -100,6 +107,52 @@ function App() {
       if (!additive && limit === 1) return [location];
       return [...next, location].slice(-limit);
     });
+  }
+
+    function changeMode(nextMode) {
+    // Clicking a tab yourself cancels anything a search asked for.
+    setForecastFocusDate(null);
+    setHeatmapRequest(null);
+    setMode(nextMode);
+  }
+
+  function selectLocations(locations) {
+    setSelectionLimit(Math.min(3, Math.max(1, locations.length)));
+    setSelectedLocations(locations.slice(0, 3));
+  }
+
+  // Picking a city from the search results: the map isn't shown on the
+  // heatmap tab, so switch to current conditions first.
+  function selectFromSearch(location) {
+    if (mode === "heatmap") changeMode("current");
+    selectLocation(location);
+  }
+
+  function showSearchLocations(locations) {
+    if (mode === "heatmap") changeMode("current");
+    selectLocations(locations);
+  }
+
+  // A search that named its places and dates: open that view directly.
+  function applySearch(result) {
+    setUnits(result.units);
+    if (result.mode === "heatmap") {
+      setHeatmapRequest({
+        date: result.date,
+        metric: result.metric,
+        stateId: stateIdForRegion(result.region),
+        id: Date.now(),
+      });
+      setMode("heatmap");
+      return;
+    }
+    setForecastFocusDate(result.mode === "forecast" ? result.date : null);
+    if (result.mode === "historical" && result.date) setHistoryDate(result.date);
+    if (result.mode === "monthly" && result.month) setHistoryMonth(result.month);
+    setMode(result.mode);
+    if (result.locations.length) {
+      selectLocations(result.locations.map((location) => toSelectedLocation(location)));
+    }
   }
 
   function changeSelectionLimit(event) {
@@ -134,7 +187,7 @@ function App() {
             type="button"
             key={item.id}
             className={mode === item.id ? "active" : ""}
-            onClick={() => setMode(item.id)}
+            onClick={() => changeMode(item.id)}
             aria-current={mode === item.id ? "page" : undefined}
           >
             <strong>{item.label}</strong>
@@ -172,11 +225,14 @@ function App() {
           </label>
         )}
       </div>
-      {mode !== "heatmap" && (
-        <LocationSearch onSelect={selectLocation} />
-      )}
+      <LocationSearch
+        units={units}
+        onSelect={selectFromSearch}
+        onShowLocations={showSearchLocations}
+        onApply={applySearch}
+      />
       
-      {mode === "heatmap" ? <Heatmap units={units} /> : <section className="content-grid">
+       {mode === "heatmap" ? <Heatmap units={units} request={heatmapRequest} /> : <section className="content-grid">
         <MapPicker
           selectedLocations={selectedLocations}
           selectionLimit={selectionLimit}

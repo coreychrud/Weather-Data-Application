@@ -7,6 +7,7 @@ climate table, so no API calls are needed at all.
 """
 
 import asyncio
+import re
 from datetime import date
 
 from app.models import UnitSystem
@@ -54,7 +55,11 @@ async def run_search(query: str, units: UnitSystem, today: date,
         return SearchResponse(**base, date=intent.date, metric=intent.metric,
                               region=_code(state), summary=describe_lookup(intent, [], state))
 
+    if place_only(query, intent):
+        return SearchResponse(**base, place_only=True, place_query=intent.places[0],
+                              summary=f"Choose the {intent.places[0]} you mean.")
     # current, forecast, historical, monthly: resolve the places (up to 3) at once.
+    
     places = await asyncio.gather(*(geocoder.resolve(name) for name in intent.places))
     locations = [SearchLocation(id=p.id, name=p.name, region=p.region,
                                 latitude=p.latitude, longitude=p.longitude) for p in places]
@@ -67,6 +72,30 @@ async def run_search(query: str, units: UnitSystem, today: date,
         locations=locations, needs_location=not locations, summary=summary,
     )
 
+
+# Words that don't change what a place-name search means.
+FILLER_WORDS = {
+    "weather", "in", "for", "at", "of", "the", "show", "me", "find", "search", "what",
+    "what's", "whats", "is", "how", "how's", "it", "like", "city", "town", "please",
+    "conditions", "temperature", "temperatures", "temp",
+}
+
+
+def place_only(query: str, intent) -> bool:
+    """Is the query just one place name, possibly wrapped in filler words?
+
+    "Austin", "Austin, TX" and "weather in Springfield" are; "Austin tomorrow",
+    "is it sunny in Austin" and "current weather in Austin" are not. A state on
+    its own isn't either, since that resolves to the state's largest metro.
+    """
+    if intent.mode is not SearchMode.current or len(intent.places) != 1 or intent.units:
+        return False
+    place = intent.places[0]
+    if state_name(place):
+        return False
+    rest = query.lower().replace("’", "'").replace(place.lower(), " ")
+    words = re.findall(r"[a-z']+", rest)
+    return all(word in FILLER_WORDS for word in words)
 
 def _code(state: str | None) -> str | None:
     if not state:

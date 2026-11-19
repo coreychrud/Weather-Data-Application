@@ -166,10 +166,38 @@ def test_today_comes_from_the_request(client) -> None:
 
 
 def test_unknown_place_is_a_422(client) -> None:
-    response = search(client, "weather in Atlantis")
+    response = search(client, "weather in Atlantis tomorrow")
     assert response.status_code == 422
     assert "Atlantis" in response.json()["detail"]
 
 
 def test_empty_query_is_rejected(client) -> None:
     assert search(client, "").status_code == 422
+
+@pytest.mark.parametrize(
+    ("query", "expected"),
+    [
+        ("Austin", True),
+        ("Springfield", True),
+        ("Austin, TX", True),
+        ("weather in Springfield?", True),
+        ("what's the weather like in Boise", True),
+        ("Houston tomorrow", False),
+        ("is it sunny in Boise", False),
+        ("current weather in Houston", False),
+        ("Houston in celsius", False),
+        ("compare Houston and Boise", False),
+        ("Texas", False),
+        ("sunny cities in July", False),
+    ],
+)
+def test_place_only(client, query: str, expected: bool) -> None:
+    body = search(client, query).json()
+    assert body["place_only"] is expected
+
+
+def test_place_only_skips_geocoding(client) -> None:
+    body = search(client, "Springfield").json()
+    assert body["place_query"] == "Springfield"
+    assert body["locations"] == []                # the pick-list comes from the location search
+    assert body["summary"] == "Choose the Springfield you mean."

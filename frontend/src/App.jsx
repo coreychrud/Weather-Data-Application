@@ -116,6 +116,13 @@ function App() {
     setMode(nextMode);
   }
 
+  function resetSearchState() {
+    setForecastFocusDate(null);
+    setHeatmapRequest(null);
+    setHistoryDate(offsetDate(-7));
+    setHistoryMonth(offsetMonth(-1));
+  }
+
   function selectLocations(locations) {
     setSelectionLimit(Math.min(3, Math.max(1, locations.length)));
     setSelectedLocations(locations.slice(0, 3));
@@ -124,17 +131,20 @@ function App() {
   // Picking a city from the search results: the map isn't shown on the
   // heatmap tab, so switch to current conditions first.
   function selectFromSearch(location) {
+    resetSearchState();
     if (mode === "heatmap") changeMode("current");
     selectLocation(location);
   }
 
   function showSearchLocations(locations) {
+    resetSearchState();
     if (mode === "heatmap") changeMode("current");
     selectLocations(locations);
   }
 
   // A search that named its places and dates: open that view directly.
   function applySearch(result) {
+    resetSearchState();
     setUnits(result.units);
     if (result.mode === "heatmap") {
       setHeatmapRequest({

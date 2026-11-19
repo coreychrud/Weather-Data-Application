@@ -12,10 +12,10 @@ const path = geoPath(nationalProjection);
 const mappedStates = states.filter((state) => path.area(state) > 0);
 const identityZoom = { scale: 1, x: 0, y: 0 };
 
-export default function Heatmap({ units }) {
-  const [date, setDate] = useState(() => offsetDate(0));
-  const [metric, setMetric] = useState("temperature");
-  const [stateId, setStateId] = useState("");
+export default function Heatmap({ units, request = null }) {
+  const [date, setDate] = useState(() => request?.date || offsetDate(0));
+  const [metric, setMetric] = useState(() => request?.metric || "temperature");
+  const [stateId, setStateId] = useState(() => request?.stateId || "");
   const [record, setRecord] = useState(null);
   const [retryCount, setRetryCount] = useState(0);
   const [hoveredId, setHoveredId] = useState(null);
@@ -66,6 +66,16 @@ export default function Heatmap({ units }) {
   const transform = `translate(${zoom.x} ${zoom.y}) scale(${zoom.scale})`;
   const sourceLabel = { historical: "Historical reanalysis", recent: "Recent model data", forecast: "Forecast" }[data?.source];
 
+    // Apply a new search while the heatmap is already open.
+  useEffect(() => {
+    if (!request) return;
+    setHoveredId(null);
+    setRecord(null);
+    if (request.date) setDate(request.date);
+    if (request.metric) setMetric(request.metric);
+    setStateId(mappedStates.some((state) => state.id === request.stateId) ? request.stateId : "");
+  }, [request]);
+  
   function selectState(nextStateId) {
     if (nextStateId === stateId) return;
     setHoveredId(null);

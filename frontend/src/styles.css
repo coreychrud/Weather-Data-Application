@@ -1025,3 +1025,99 @@ h2 {
 .location-search-results small {
   color: #65757f;
 }
+
+/* Natural-language search additions */
+.search-examples {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 0.85rem;
+  color: #65757f;
+}
+
+.search-examples span {
+  font-weight: 600;
+}
+
+.search-examples span:not(:first-child) {
+  margin-left: 8px;
+}
+
+.search-examples button {
+  padding: 5px 12px;
+  border: 1px solid #dbe4e5;
+  border-radius: 999px;
+  background: #f9fbfb;
+  color: #163f4b;
+  cursor: pointer;
+}
+
+.search-examples button:hover {
+  background: #e4f3f0;
+}
+
+.search-answer {
+  margin: 14px 0 0;
+  padding: 10px 14px;
+  border-left: 4px solid #2f7f78;
+  border-radius: 8px;
+  background: #f3f8f7;
+  color: #163f4b !important;
+}
+
+.ranked-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.ranked-heading h3 {
+  margin: 0;
+}
+
+.show-top {
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 10px;
+  color: white;
+  background: #163f4b;
+  cursor: pointer;
+}
+
+.ranked-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.ranked-list li button {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #dbe4e5;
+  border-radius: 10px;
+  background: #f9fbfb;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ranked-list li button:hover {
+  background: #e4f3f0;
+}
+
+.ranked-list span {
+  color: #2f7f78;
+  font-weight: 600;
+}
+
+.ranked-list small {
+  color: #65757f;
+}

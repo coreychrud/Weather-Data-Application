@@ -8,3 +8,5 @@ node_modules/
 dist/
 build/
 *.egg-info/
+# Raw downloads from app/search/build_climate.py
+.climate-cache/
